@@ -31,10 +31,10 @@ uart_mode_comm UART 指令接收、电梯状态回传
 6. LED显示当前楼层、运行方向、电梯工作模式
 
 ### 四种运行模式（通过串口指令切换）
-- `AUTO`  自动运行模式
-- `MANUAL` 手动模式
-- `FIRE` 消防模式，电梯强制返回1楼
-- `REPAIR` 设备检修模式
+1. `AUTO`  自动运行模式
+2. `MANUAL` 手动模式
+3. `FIRE` 消防模式，电梯强制返回1楼
+4. `REPAIR` 设备检修模式
 
 ### UART人机交互功能
 1. 串口参数：115200 8N1
@@ -46,20 +46,20 @@ uart_mode_comm UART 指令接收、电梯状态回传
     - M：工作模式
     - D：门状态(O=开门 / C=关门)
 
-## 项目目录结构
-├── src/ # 所有 Verilog 源代码
-│ ├── elevator_top.v # 顶层模块
-│ ├── key_debounce.v
-│ ├── floor_detect.v
-│ ├── call_schedule.v
-│ ├── elevator_ctrl.v
-│ ├── buzzer_driver.v
-│ ├── led_driver.v
-│ └── uart_mode_comm.v
-├── tb/ # 各子模块 Testbench 仿真文件
-├── doc/ # 调试记录、问题与解决方案文档
-├── constraint/ # FPGA 引脚分配 qsf 约束文件
-└── README.md
+📁 src/          # 所有Verilog源代码
+├─ elevator_top.v      # 顶层模块
+├─ key_debounce.v      # 按键消抖模块
+├─ floor_detect.v      # 楼层检测模块
+├─ call_schedule.v     # 呼梯调度模块
+├─ elevator_ctrl.v     # 电梯主控（状态机核心）
+├─ buzzer_driver.v     # 蜂鸣器驱动
+├─ led_driver.v        # LED显示驱动
+└─ uart_mode_comm.v    # UART通信模块
+
+📁 tb/           # 各模块Testbench仿真文件
+📁 doc/          # 调试记录、问题与解决方案文档
+📁 constraint/   # FPGA引脚分配qsf约束文件
+📄 README.md
 
 ## 仿真说明
 1. 各个功能子模块独立编写Testbench单元仿真，通过波形观测时序行为；
