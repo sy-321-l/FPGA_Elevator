@@ -1,0 +1,21 @@
+# Quartus工程缓存文件
+*.bak
+*.qws
+*.sof
+*.jdi
+*.rpt
+*.log
+*.htm
+*.smsg
+db/
+incremental_db/
+output_files/
+
+# ModelSim仿真文件
+*.vcd
+*.wlf
+transcript
+
+# 系统垃圾文件
+.DS_Store
+Thumbs.db
