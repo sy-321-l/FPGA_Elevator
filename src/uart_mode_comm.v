@@ -2,8 +2,8 @@ module uart_mode_comm
 (
     input               clk,
     input               rst_n,
-    input               uart_rx,
-    output reg          uart_tx,
+    input               uart_rx,     // 串口接收引脚，来自外部上位机
+    output reg          uart_tx,     // 串口发送引脚，发给上位机
     input       [2:0]   curr_floor,
     input               dir_up,
     input               dir_down,
@@ -12,29 +12,29 @@ module uart_mode_comm
 );
 
 parameter BAUD_CNT_MAX = 16'd434;  // 50MHz 下 115200 波特分频
-parameter CHAR_WID     = 4'd8;
-localparam IDLE  = 2'b00;
-localparam RX    = 2'b01;
-localparam TX    = 2'b10;
+parameter CHAR_WID     = 4'd8;     // 数据位宽度，8位
+localparam IDLE  = 2'b00;          // 空闲状态
+localparam RX    = 2'b01;          // 接收状态
+localparam TX    = 2'b10;          // 发送状态
 
-reg [1:0] comm_state;
-reg [7:0] rx_buf [7:0];
-reg [2:0] rx_len;
-reg [15:0] baud_cnt;
-reg [3:0]  bit_cnt;      // 0=起始位, 1~8=数据位0~7, 9=停止位
-reg [7:0]  rx_data;
+reg [1:0] comm_state;     // 当前状态
+reg [7:0] rx_buf [7:0];   // 接收缓存数组，最多存8个字节（一帧指令）
+reg [2:0] rx_len;         // 当前已经接收了多少字节
+reg [15:0] baud_cnt;      // 波特率计数器：数到434代表一位传完
+reg [3:0]  bit_cnt;       // 位计数器：0=起始位, 1~8=数据位0~7, 9=停止位
+reg [7:0]  rx_data;       // 单个字节的接收寄存器
 
-reg        tx_req;
-reg [4:0]  tx_byte_cnt;
-reg [7:0]  tx_buf [31:0];
-reg [4:0]  tx_total_len;
-reg frame_done;
+reg        tx_req;        // 发送请求标志，有数据要发时拉高
+reg [4:0]  tx_byte_cnt;   // 当前发送到第几个字节
+reg [7:0]  tx_buf [31:0]; // 发送缓存数组，最多存32个字节的回显字符串
+reg [4:0]  tx_total_len;  // 本次要发送的总字节数
+reg frame_done;           // 一帧指令接收完成标志
 
 // RX两级同步防亚稳态
 reg uart_rx_sync1, uart_rx_sync2;
 always @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
-        uart_rx_sync1 <= 1'b1;
+		  uart_rx_sync1 <= 1'b1;  // 复位默认拉高，串口空闲状态为高电平
         uart_rx_sync2 <= 1'b1;
     end else begin
         uart_rx_sync1 <= uart_rx;
@@ -43,12 +43,12 @@ always @(posedge clk or negedge rst_n) begin
 end
 
 always @(posedge clk or negedge rst_n) begin
-    if(!rst_n) begin
+    if(!rst_n) begin  // 复位初始化，全部回到空闲、清零
         comm_state    <= IDLE;
         baud_cnt      <= 16'd0;
         bit_cnt       <= 4'd0;
         rx_len        <= 3'd0;
-        mode          <= 4'b0001;
+        mode          <= 4'b0001;  // 默认自动模式
         uart_tx       <= 1'b1;
         tx_req        <= 1'b0;
         tx_byte_cnt   <= 5'd0;
@@ -56,7 +56,7 @@ always @(posedge clk or negedge rst_n) begin
         frame_done    <= 1'b0;
     end
     else begin
-        frame_done <= 1'b0;
+        frame_done <= 1'b0;  // 默认拉低，只有接收完成那一拍拉高
 
         case(comm_state)
         IDLE: begin
@@ -70,14 +70,15 @@ always @(posedge clk or negedge rst_n) begin
                 // AUTO 指令匹配
                 if(rx_buf[0]=="A" && rx_buf[1]=="U" && rx_buf[2]=="T" && rx_buf[3]=="O") begin
                     mode <= 4'b0001;
+						  // 拼装回显字符串，写入tx_buf
                     tx_buf[0]  <= "F"; tx_buf[1]  <= ":"; tx_buf[2]  <= 8'h30 + curr_floor; tx_buf[3]  <= " ";
                     tx_buf[4]  <= "D"; tx_buf[5]  <= ":";
                     if(dir_up) begin
                         tx_buf[6]  <= "U"; tx_buf[7]  <= "P"; tx_buf[8]  <= " ";
                         tx_buf[9]  <= "M"; tx_buf[10] <= ":"; tx_buf[11] <= "A"; tx_buf[12] <= " ";
                         tx_buf[13] <= "D"; tx_buf[14] <= ":"; tx_buf[15] <= door_open ? "O" : "C";
-                        tx_buf[16] <= 8'h0D; tx_buf[17] <= 8'h0A;
-                        tx_total_len <= 5'd18;
+                        tx_buf[16] <= 8'h0D; tx_buf[17] <= 8'h0A;  // 回车换行符\r\n
+                        tx_total_len <= 5'd18;  // 本次回显一共18字节
                     end
                     else if(dir_down) begin
                         tx_buf[6]  <= "D"; tx_buf[7]  <= "O"; tx_buf[8]  <= "W"; tx_buf[9]  <= "N"; tx_buf[10] <= " ";
@@ -93,7 +94,7 @@ always @(posedge clk or negedge rst_n) begin
                         tx_buf[18] <= 8'h0D; tx_buf[19] <= 8'h0A;
                         tx_total_len <= 5'd20;
                     end
-                    tx_req <= 1'b1;
+                    tx_req <= 1'b1;  // 指令匹配成功，发送请求
                 end
                 // MANUAL 指令匹配
                 else if(rx_buf[0]=="M"&&rx_buf[1]=="A"&&rx_buf[2]=="N"&&rx_buf[3]=="U"&&rx_buf[4]=="A"&&rx_buf[5]=="L") begin
@@ -220,7 +221,7 @@ always @(posedge clk or negedge rst_n) begin
                             if(rx_data == 8'h0D || rx_data == 8'h0A) begin
                                 comm_state <= IDLE;
                                 rx_len     <= 3'd0;
-                                frame_done <= 1'b1;
+                                frame_done <= 1'b1;  // 拉高帧完成标志
                             end
                             else begin
                                 // 普通字符存入缓存
@@ -252,27 +253,29 @@ always @(posedge clk or negedge rst_n) begin
         // 发送逻辑
         TX: begin
             baud_cnt <= baud_cnt + 16'd1;
+				// 数满一个波特周期，就发下一位
             if(baud_cnt == BAUD_CNT_MAX) begin
                 baud_cnt <= 16'd0;
                 bit_cnt  <= bit_cnt + 4'd1;
                 case(bit_cnt)
-                    4'd0: uart_tx <= 1'b0;          // 起始位
-                    4'd1: uart_tx <= tx_buf[tx_byte_cnt][0];
+                    4'd0: uart_tx <= 1'b0;          // 第0位：拉低，发起始位
+                    4'd1: uart_tx <= tx_buf[tx_byte_cnt][0];  // 发数据位第0位
                     4'd2: uart_tx <= tx_buf[tx_byte_cnt][1];
                     4'd3: uart_tx <= tx_buf[tx_byte_cnt][2];
                     4'd4: uart_tx <= tx_buf[tx_byte_cnt][3];
                     4'd5: uart_tx <= tx_buf[tx_byte_cnt][4];
                     4'd6: uart_tx <= tx_buf[tx_byte_cnt][5];
                     4'd7: uart_tx <= tx_buf[tx_byte_cnt][6];
-                    4'd8: uart_tx <= tx_buf[tx_byte_cnt][7];
+                    4'd8: uart_tx <= tx_buf[tx_byte_cnt][7];  // 发数据位第7位
                     4'd9: begin
-                        uart_tx <= 1'b1;          // 停止位
+                        uart_tx <= 1'b1;          // 第9位：拉高，发停止位
+								// 判断还有没有下一个字节要发
                         if(tx_byte_cnt < tx_total_len - 1) begin
                             tx_byte_cnt <= tx_byte_cnt + 5'd1;
-                            bit_cnt <= 4'd0;
+                            bit_cnt <= 4'd0;  // 位计数清零，发下一字节
                         end
                         else begin
-                            comm_state <= IDLE;
+                            comm_state <= IDLE;  // 全部发完，退回空闲
                             tx_req <= 1'b0;
                         end
                     end
