@@ -58,7 +58,7 @@ always @(posedge clk or negedge rst_n) begin
         cnt_1s <= 26'd0;
 end
 
-// 状态寄存器时序逻辑 (两段式FSM)
+// 状态寄存器时序逻辑 
 always @(posedge clk or negedge rst_n) begin
     if(!rst_n)
         curr_state <= IDLE;
