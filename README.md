@@ -46,21 +46,6 @@ uart_mode_comm UART 指令接收、电梯状态回传
     - M：工作模式
     - D：门状态(O=开门 / C=关门)
 
-📁 src/          # 所有Verilog源代码
-├─ elevator_top.v      # 顶层模块
-├─ key_debounce.v      # 按键消抖模块
-├─ floor_detect.v      # 楼层检测模块
-├─ call_schedule.v     # 呼梯调度模块
-├─ elevator_ctrl.v     # 电梯主控（状态机核心）
-├─ buzzer_driver.v     # 蜂鸣器驱动
-├─ led_driver.v        # LED显示驱动
-└─ uart_mode_comm.v    # UART通信模块
-
-📁 tb/           # 各模块Testbench仿真文件
-📁 doc/          # 调试记录、问题与解决方案文档
-📁 constraint/   # FPGA引脚分配qsf约束文件
-📄 README.md
-
 ## 仿真说明
 1. 各个功能子模块独立编写Testbench单元仿真，通过波形观测时序行为；
 2. 顶层`elevator_top`用于综合、布局布线与上板硬件验证；
@@ -84,10 +69,3 @@ uart_mode_comm UART 指令接收、电梯状态回传
 1. 下载工程至DE2-115开发板；
 2. 使用串口助手，波特率设置115200，发送指令控制电梯模式；
 3. 拨码开关模拟楼层位置，按键模拟呼梯、手动开关门。
-
-## 后续可优化方向
-1. UART收发增加独立FIFO缓冲区，实现收发并行（当前简化为半双工）；
-2. 增加指令超时机制，防止不完整指令造成缓存残留；
-3. 呼梯调度算法拓展更多优化策略；
-4. 增加指令CRC/奇偶校验，提升串口通信抗干扰能力；
-5. 增加电梯运行超时保护机制。
